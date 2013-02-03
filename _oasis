@@ -1,0 +1,14 @@
+OASISFormat: 0.3
+Name:        fable
+Version:     0.1.0
+Synopsis:    Flow-based I/O channels
+Authors:     Anil Madhavapeddy
+License:     ISC
+Plugins:     META (0.3), DevFiles (0.3)
+BuildTools:  ocamlbuild
+
+Library fable_async
+  Path: lib
+  Modules: Fable_async
+  BuildDepends:	async, core.syntax
+
