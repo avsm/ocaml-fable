@@ -17,30 +17,40 @@
 
 open Async.Std
 
-type addr = Socket.Address.Inet.t
-
+(* The per-flow state and associated pipes *)
 type flow_state with sexp_of
 type reader = Cstruct.t Pipe.Reader.t
 type writer = Cstruct.t Pipe.Writer.t
 type flow = flow_state * reader * writer
-type flow_accept = addr -> flow -> unit Deferred.t
-type listener
 
+(* Handler for constructing new flows from listeners.
+ * The first parameter is the remote endpoint. *)
+type flow_accept = 
+  Socket.Address.Inet.t -> 
+  flow -> 
+  unit Deferred.t
+
+(* Establish a remote flow *)
 val connect : 
-  ?src:addr ->
+  ?src:Socket.Address.Inet.t ->
   dst:string -> 
   port:int ->
   unit -> 
   flow Deferred.t 
 
-val accept :
+(* A listening flow that accepts incoming connections *)
+type listener
+
+(* Accept new connections *)
+val listen :
   ?max_connections:int ->
   ?max_pending_connections:int ->
-  ?src:addr ->
+  ?src:Socket.Address.Inet.t ->
   ?port:int ->
   flow_accept ->
   listener Deferred.t
 
+(* Stop accepting new connections *)
 val close_listener : 
   listener ->
   unit Deferred.t

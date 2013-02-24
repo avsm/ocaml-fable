@@ -29,10 +29,8 @@ type listener = [
   |`TCPv4 of unit Ivar.t * unit Ivar.t
 ]
 
-type reader = Cstruct.t Pipe.Reader.t
-type writer = Cstruct.t Pipe.Writer.t
-type flow = flow_state * reader * writer
-type flow_accept = flow -> unit Deferred.t
+type 'a flow = flow_state * 'a Pipe.Reader.t * 'a Pipe.Writer.t
+type flow_accept = Cstruct.t flow -> unit Deferred.t
 
 type ctx = {
   (* TODO bind source port here for tcpv4 *)
@@ -55,22 +53,22 @@ let connect ~ctx ~uri =
     >>= fun (flow, rd, wr) ->
     return (`TCPv4 flow, rd, wr)
 
-let accept ~ctx ~uri ~f =
+let listen ~ctx ~uri ~f =
   let src = None (* TODO *) in
   let open Fable_resolver_async in
   resolve_flow uri
   >>= function
   |None -> raise Connection_error (* TODO sexp *)
   |Some (`TCPv4_host (_,port)) ->
-    Fable_tcpv4_async.accept ?src ~port
+    Fable_tcpv4_async.listen ?src ~port
       (fun srcaddr (flow,rd,wr) -> 
-         let flow : flow = (`TCPv4 flow), rd, wr in
+         let flow = (`TCPv4 flow), rd, wr in
          (* TODO srcaddr needs to be passed through resolver somehow *)
          f flow
       )
     >>= fun s ->
     Queue.enqueue ctx.tcpv4_listeners s;
-    Log.Global.info "accept[started]: %s" (Uri.to_string uri);
+    Log.Global.info "listen[started]: %s" (Uri.to_string uri);
     let iv = Ivar.create () in
     let iv' = Ivar.create () in
     don't_wait_for (
@@ -89,3 +87,13 @@ let close_listener =
   |`TCPv4 (l,l') ->
     Ivar.fill_if_empty l ();
     Ivar.read l
+
+(* FABLE uses [Cstruct] buffers by default, which are heap-allocated
+ * memory buffers. This lets them be conveniently converted into
+ * equivalent structures such as [string] (which involves a copy)
+ *)
+let map_flow_to_string (flow,rd,wr) =
+    let rd = Pipe.map rd ~f:Cstruct.to_string in
+    let rd',wr' = Pipe.create () in
+    don't_wait_for (Pipe.transfer rd' wr ~f:Cstruct.of_string);
+    (flow,rd,wr')

@@ -21,18 +21,28 @@ open Async.Std
 (* Every FABLE resolver has a context which tracks the node it is bound
  * to, and the network connections that are active from this context *)
 type ctx
+val init : unit -> ctx
 
 (* Every established connection has a [reader] and [writer] Async interface,
  * and a connection-specific abstract [flow_state] *)
-type reader = Cstruct.t Pipe.Reader.t
-type writer = Cstruct.t Pipe.Writer.t
 type flow_state with sexp_of
+type 'a flow = flow_state * 'a Pipe.Reader.t * 'a Pipe.Writer.t
 
-type flow = flow_state * reader * writer
-type flow_accept = flow -> unit Deferred.t
+(* Establish a connection to a remote URI. *)
+val connect : ctx:ctx -> uri:Uri.t -> Cstruct.t flow Deferred.t
+
+(* New flow handler for building flows.  If the [Deferred.t] returned
+ * here is ever determined, or the handler raises an exception, then the
+ * [Reader] and [Writer] will be closed. *)
+type flow_accept = Cstruct.t flow -> unit Deferred.t
+
+(* Listen for incoming network flows *)
 type listener
+val listen : ctx:ctx -> uri:Uri.t -> f:flow_accept -> listener Deferred.t
+val close_listener : listener -> unit Deferred.t
 
-val init : unit -> ctx
-
-val connect : ctx:ctx -> uri:Uri.t -> flow Deferred.t
-val accept : ctx:ctx -> uri:Uri.t -> f:flow_accept -> listener Deferred.t
+(* FABLE uses [Cstruct] buffers by default, which are heap-allocated
+ * memory buffers. This module lets them be conveniently converted into
+ * equivalent structures such as [string] (which involves a copy)
+ *)
+val map_flow_to_string : Cstruct.t flow -> string flow

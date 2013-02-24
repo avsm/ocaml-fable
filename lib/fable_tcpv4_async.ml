@@ -18,8 +18,9 @@
 open Core.Std
 open Async.Std
 
+(* Per-TCP-flow statistics *)
 type flow_state = {
-  start_time: float; (* Time the flow began *)
+  start_time: float;         (* Time the flow began *)
   mutable last_time: float;  (* Last time the float was read or written to *)
   mutable write_size: int64; (* Number of bytes written across the flow *)
   mutable read_size: int64;  (* Number of bytes read from the flow *)
@@ -27,18 +28,20 @@ type flow_state = {
   src: Socket.Address.Inet.t option;
 } with sexp
 
-type addr = Socket.Address.Inet.t
+(* Reader and writer Async pipes *)
 type reader = Cstruct.t Pipe.Reader.t
 type writer = Cstruct.t Pipe.Writer.t
 
+(* A flow combines the reader and writer pipes *)
 type flow = flow_state * reader * writer
-type flow_accept = addr -> flow -> unit Deferred.t
-type listener = (addr, int) Tcp.Server.t
 
-let add_read_bytes flow amt =
-  flow.last_time <- Unix.gettimeofday ();
-  flow.read_size <- Int64.(flow.read_size + (of_int amt))
+(* Handler for constructing new flows from accepted connections *)
+type flow_accept = Socket.Address.Inet.t -> flow -> unit Deferred.t
 
+(* The state of a listening flow, which can be closed *)
+type listener = (Socket.Address.Inet.t, int) Tcp.Server.t
+
+(* Construct a new flow with given [src] and [dst] addresses *)
 let create ?src ~dst =
   let start_time = Unix.gettimeofday () in
   { start_time;
@@ -48,37 +51,37 @@ let create ?src ~dst =
     src; dst
   }
 
-(* Wrap a Reader/Write pair with a flow that tracks the statistics
- * and apply a function with the resulting new end points *)
+(* Wrap an Async Reader/Write pair with a flow that tracks the statistics
+ * and supplies a Pipe pair for reading and writing Cstructs from it *)
 let wrap flow rd wr : flow =
   (* Construct a proxy pipe to track flow stats from the
    * real TCP Reader/Writer that we've been supplied. *)
   let rd',wr' = Pipe.create () in
   let rec read_t () =
     let buf = Cstruct.create 4096 in
-    Printf.printf "block read\n%!";
     Async_cstruct.read rd buf 
     >>= function
     |`Eof -> 
-      Printf.printf "read eof\n%!";
-      Pipe.close wr'; return ()
+      Pipe.close wr'; 
+      return ()
     |`Ok len -> begin
-        Printf.printf "unblock read\n%!";
         let buf = Cstruct.set_len buf len in
         Pipe.write_when_ready wr' 
-          ~f:(fun wrfn -> add_read_bytes flow len; wrfn buf)
+          ~f:(fun wrfn ->
+            flow.last_time <- Unix.gettimeofday ();
+            flow.read_size <- Int64.(flow.read_size + (of_int len));
+            wrfn buf)
         >>= function
         |`Ok () -> read_t ()
         |`Closed -> Reader.close rd
       end
   in
-  Deferred.don't_wait_for (read_t ());
+  (* Now construct the writer end of the Pipe *)
   let rd'',wr'' = Pipe.create () in
-  Deferred.don't_wait_for (
-    Writer.transfer wr rd''
-      (fun buf -> Async_cstruct.schedule_write wr buf)
-  );
-  flow, rd',wr''
+  let write_t = Writer.transfer wr rd'' (Async_cstruct.schedule_write wr) in
+  don't_wait_for (read_t ());
+  don't_wait_for write_t;
+  flow, rd', wr''
 
 let connect ?src ~dst ~port () =
   Tcp.connect (Tcp.to_host_and_port dst port)
@@ -87,16 +90,7 @@ let connect ?src ~dst ~port () =
   let flow = create ?src ~dst in
   return (wrap flow rd wr)
 
-(* The accept handler constructs flows as they are accepted, and
- * tracks the flow information via the Reader and Writer wrappers.
- * @param our_sock    The listening socket address.
- * @param their_sock  The connecting client's address.
-*)
-let accept_handler fn our_sock their_sock rd wr =
-  let flow = create ?src:our_sock ~dst:their_sock in
-  wrap flow rd wr
-
-let accept ?max_connections ?max_pending_connections ?src ?port f =
+let listen ?max_connections ?max_pending_connections ?src ?port f =
   let listening_on =
     match port with
     |None -> Tcp.on_port_chosen_by_os
@@ -106,10 +100,8 @@ let accept ?max_connections ?max_pending_connections ?src ?port f =
     let flow = create ?src ~dst:their_sock in
     f their_sock (wrap flow rd wr)
   in
-  Tcp.Server.create 
-    ?max_connections
-    ?max_pending_connections 
-    listening_on
-    accept_handler
+  Tcp.Server.create ?max_connections ?max_pending_connections 
+    listening_on accept_handler
 
-let close_listener l = Tcp.Server.close l
+let close_listener l = 
+  Tcp.Server.close l
