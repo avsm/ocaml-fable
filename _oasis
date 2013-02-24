@@ -17,3 +17,9 @@ Executable async_connect
   MainIs: async_connect.ml
   BuildDepends: fable_async
   CompiledObject: best
+
+Executable async_listen
+  Path: lib_test
+  MainIs: async_listen.ml
+  BuildDepends: fable_async
+  CompiledObject: best

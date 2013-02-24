@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c0317bb2340c1bf1a2a8839e1b667d8b)
+# DO NOT EDIT (digest: 9495c3cfa7871ff3ce3e29db302eadee)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -29,6 +29,14 @@
 <lib_test/async_connect.{native,byte}>: pkg_sexplib.syntax
 <lib_test/async_connect.{native,byte}>: pkg_uri
 <lib_test/async_connect.{native,byte}>: pkg_uri.services
+# Executable async_listen
+<lib_test/async_listen.{native,byte}>: use_fable_async
+<lib_test/async_listen.{native,byte}>: pkg_cstruct.async
+<lib_test/async_listen.{native,byte}>: pkg_threads
+<lib_test/async_listen.{native,byte}>: pkg_async
+<lib_test/async_listen.{native,byte}>: pkg_sexplib.syntax
+<lib_test/async_listen.{native,byte}>: pkg_uri
+<lib_test/async_listen.{native,byte}>: pkg_uri.services
 <lib_test/*.ml{,i}>: use_fable_async
 <lib_test/*.ml{,i}>: pkg_cstruct.async
 <lib_test/*.ml{,i}>: pkg_threads
