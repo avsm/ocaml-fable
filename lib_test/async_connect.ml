@@ -21,17 +21,17 @@ open Async.Std
 open Fable_async
 
 let t =
-  Log.Global.info "%s" "Start";
+  Log.Global.info "Start";
   let ctx = init () in
   let uri = Uri.of_string "http://anil.recoil.org" in
   connect ~ctx ~uri
   >>= fun (flow, rd, wr) ->
+  let flow, rd, wr = map_flow_to_string (flow,rd,wr) in
   Log.Global.info "%s" "Connected";
   Log.Global.sexp flow sexp_of_flow_state;
-  let wrbuf = Cstruct.of_string "GET / HTTP/1.1\nHost: anil.recoil.org\nConnection: close\n\n" in
-  Pipe.write wr wrbuf >>= fun () ->
-  Pipe.iter rd ~f:(fun c -> 
-    Log.Global.debug "BODY %s\n%!" (Cstruct.to_string c); return ())
+  Pipe.write wr "GET / HTTP/1.1\nHost: anil.recoil.org\nConnection: close\n\n"
+  >>= fun () ->
+  Pipe.iter rd ~f:(fun c -> Log.Global.debug "BODY %s\n%!" c; return ())
   >>= fun () ->
   Log.Global.sexp flow sexp_of_flow_state;
   Log.Global.info "%s" "End";
