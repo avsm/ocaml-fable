@@ -15,30 +15,12 @@
  *
  *)
 
-open Core.Std
 open Async.Std
 
 type result = [
   |`TCPv4_host of string * int  (* hostname and port *)
 ] with sexp_of
 
-(* This resolver maps URLs to Fable Flows via network lookups using
- * the system resolver (via the Async.Tcp module) *)
-module System = struct
-
-  (* A flow resolution will request a TCP connection using this
-   * resolver, as the best byte-stream protocol.  It could also
-   * use alternatives such as SCTP in the future. *)
-  let resolve_flow uri : result option Deferred.t =
-    let host = Option.value (Uri.host uri) ~default:"localhost" in
-    match Uri_services.tcp_port_of_uri uri with
-    |None ->
-      Log.Global.error "Failed to resolve %s" (Uri.to_string uri);
-      return None
-    |Some port ->
-      Log.Global.debug "Resolved %s -> %s:%d" (Uri.to_string uri) host port;
-      return (Some (`TCPv4_host (host, port)))
-end
-
-let resolve_flow uri = 
-  System.resolve_flow uri
+val resolve_flow :
+  Uri.t -> 
+  result option Deferred.t
