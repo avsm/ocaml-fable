@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: ac0b7e8216490f30fc7a08f40569b70e)
+version = "0.1.0"
+description = "Flow-based I/O channels"
+requires = "cstruct.async threads async sexplib.syntax uri uri.services"
+archive(byte) = "fable_async.cma"
+archive(byte, plugin) = "fable_async.cma"
+archive(native) = "fable_async.cmxa"
+archive(native, plugin) = "fable_async.cmxs"
+exists_if = "fable_async.cma"
+# OASIS_STOP
+
