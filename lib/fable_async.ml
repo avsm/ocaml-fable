@@ -87,13 +87,3 @@ let close_listener =
   |`TCPv4 (l,l') ->
     Ivar.fill_if_empty l ();
     Ivar.read l
-
-(* FABLE uses [Cstruct] buffers by default, which are heap-allocated
- * memory buffers. This lets them be conveniently converted into
- * equivalent structures such as [string] (which involves a copy)
- *)
-let map_flow_to_string (flow,rd,wr) =
-    let rd = Pipe.map rd ~f:Cstruct.to_string in
-    let rd',wr' = Pipe.create () in
-    don't_wait_for (Pipe.transfer rd' wr ~f:Cstruct.of_string);
-    (flow,rd,wr')

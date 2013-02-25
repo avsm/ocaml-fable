@@ -19,25 +19,26 @@ open Core.Std
 open Async.Std
 
 open Fable_async
+module L = Log.Global
 
 let t =
-  Log.Global.info "Start";
+  L.info "Start";
   let ctx = init () in
   let uri = Uri.of_string "http://anil.recoil.org" in
   connect ~ctx ~uri
   >>= fun (flow, rd, wr) ->
-  let flow, rd, wr = map_flow_to_string (flow,rd,wr) in
-  Log.Global.info "%s" "Connected";
-  Log.Global.sexp flow sexp_of_flow_state;
+  let rd,wr = Async_cstruct.Pipe.map_string rd wr in
+  L.info "%s" "Connected";
+  L.sexp flow sexp_of_flow_state;
   Pipe.write wr "GET / HTTP/1.1\nHost: anil.recoil.org\nConnection: close\n\n"
   >>= fun () ->
   Pipe.iter rd ~f:(fun c -> Log.Global.debug "BODY %s\n%!" c; return ())
   >>= fun () ->
-  Log.Global.sexp flow sexp_of_flow_state;
-  Log.Global.info "%s" "End";
+  L.sexp flow sexp_of_flow_state;
+  L.info "%s" "End";
   return ()
 
 let _ =
-  Log.Global.set_level `Debug;
-  Log.Global.set_output [Log.Output.screen];
+  L.set_level `Debug;
+  L.set_output [Log.Output.screen];
   never_returns (Scheduler.go ())

@@ -19,29 +19,31 @@ open Core.Std
 open Async.Std
 
 open Fable_async
+module L = Log.Global
 
-let f flow =
-  Log.Global.info "New flow";
-  let flow,rd,wr = map_flow_to_string flow in
-  Log.Global.sexp flow sexp_of_flow_state;
+
+let f (flow,rd,wr) =
+  L.info "New flow";
+  let rd,wr = Async_cstruct.Pipe.map_string rd wr in
+  L.sexp flow sexp_of_flow_state;
   Pipe.iter rd ~f:(fun s -> 
-    Log.Global.debug "read %s" s;
+    L.debug "read %s" s;
     Pipe.write wr s
   )
 
 let t =
-  Log.Global.info "Start";
+  L.info "Start";
   let ctx = init () in
   let uri = Uri.of_string "http://anil.recoil.org:5555" in
   listen ~ctx ~uri ~f
   >>= fun listener ->
-  Log.Global.info "Listener started";
+  L.info "Listener started";
   after (Time.Span.of_sec 10.)
   >>= fun () ->
-  Log.Global.info "Listening shutting down";
+  L.info "Listening shutting down";
   close_listener listener
 
 let _ =
-  Log.Global.set_level `Debug;
-  Log.Global.set_output [Log.Output.screen];
+  L.set_level `Debug;
+  L.set_output [Log.Output.screen];
   never_returns (Scheduler.go ())

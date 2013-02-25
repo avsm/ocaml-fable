@@ -40,9 +40,3 @@ type flow_accept = Cstruct.t flow -> unit Deferred.t
 type listener
 val listen : ctx:ctx -> uri:Uri.t -> f:flow_accept -> listener Deferred.t
 val close_listener : listener -> unit Deferred.t
-
-(* FABLE uses [Cstruct] buffers by default, which are heap-allocated
- * memory buffers. This module lets them be conveniently converted into
- * equivalent structures such as [string] (which involves a copy)
- *)
-val map_flow_to_string : Cstruct.t flow -> string flow
