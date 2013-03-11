@@ -9,7 +9,7 @@ BuildTools:  ocamlbuild
 
 Library fable_async
   Path: lib
-  Modules: Fable_tcpv4_async, Fable_async
+  Modules: Fable_tcpv4_async, Fable_resolver_async, Fable_async
   BuildDepends:	cstruct.async (>= 0.7.1), threads, async, sexplib.syntax, uri, uri.services
 
 Executable async_connect
