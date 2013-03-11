@@ -85,7 +85,7 @@ let wrap flow rd wr : flow =
 
 let connect ?src ~dst ~port () =
   Tcp.connect (Tcp.to_host_and_port dst port)
-  >>= fun (rd,wr) ->
+  >>= fun (_,rd,wr) ->
   let dst = Socket.getpeername (Socket.of_fd (Reader.fd rd) Socket.Type.tcp) in
   let flow = create ?src ~dst in
   return (wrap flow rd wr)
