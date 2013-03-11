@@ -46,3 +46,4 @@
 <lib_test/*.ml{,i}>: pkg_uri.services
 # OASIS_STOP
 true: annot
+<lib/*.ml{,i}>: syntax_camlp4o
